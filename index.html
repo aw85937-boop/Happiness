@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 :root{
   --bg-0:#060a12;--bg-1:#0c1220;
@@ -451,27 +452,7 @@ tbody tr:hover{background:rgba(255,255,255,0.02);}
     <button class="tab" data-pg="pgDashboard" aria-label="Halaman Dashboard"><i class="fas fa-chart-line"></i><span>Dashboard</span></button>
     <button class="tab" data-pg="pgBarcode" aria-label="Halaman Cetak Barcode"><i class="fas fa-id-card"></i><span>Cetak Barcode</span></button>
   </div>
-  <button class="btn-settings" id="btnSettings" aria-label="Pengaturan koneksi" title="Pengaturan koneksi App Script">
-    <i class="fas fa-gear"></i>
-  </button>
 </nav>
-
-<!-- ════════ SETTINGS MODAL ════════ -->
-<div class="modal-veil" id="modalSettings">
-  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-    <h3 id="modalTitle"><i class="fas fa-plug-circle-bolt"></i> Pengaturan Koneksi</h3>
-    <div class="modal-sub">Masukkan URL Web App Google Apps Script yang menjadi sumber data dashboard ini. URL disimpan hanya di perangkat/browser ini.</div>
-    <div class="modal-field">
-      <label for="inputGasUrl">Google Apps Script URL</label>
-      <input type="text" id="inputGasUrl" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off" spellcheck="false">
-    </div>
-    <div class="modal-status" id="modalStatus"></div>
-    <div class="modal-actions">
-      <button class="modal-btn-cancel" id="btnModalCancel">Batal</button>
-      <button class="modal-btn-save" id="btnModalSave"><i class="fas fa-check"></i> Simpan &amp; Uji</button>
-    </div>
-  </div>
-</div>
 
 <!-- ════════ SCAN ════════ -->
 <section id="pgScan" class="pg on">
@@ -618,25 +599,112 @@ tbody tr:hover{background:rgba(255,255,255,0.02);}
 
 <script>
 /* ==============================================================
-   KONFIGURASI — URL App Script (bisa diubah lewat tombol
-   Pengaturan di pojok kanan atas, tersimpan di localStorage)
+   KONFIGURASI — Supabase Project URL & Publishable Key
+   (anon key ini memang didesain untuk publik/terekspos di
+   client-side; keamanan data dijaga lewat Row Level Security
+   di database, bukan dengan menyembunyikan key ini)
 ============================================================== */
-const DEFAULT_GAS_URL='https://script.google.com/macros/s/AKfycbyF4-GO4wLTZDGgunl9XgT0lI_ITdeq_MlvOU_LQgw8bwoNRPWiMC0WfYUm2T1jJgBq/exec';
-const LS_KEY_GAS='dashboard_gas_url';
-let GAS_URL=localStorage.getItem(LS_KEY_GAS)||DEFAULT_GAS_URL;
+const SB_URL='https://zvsgqmqyuxevvzyjadzv.supabase.co';
+const SB_KEY='sb_publishable_nFphtt4y1peWkqpqTn1Mcg_QWnM7RPf';
+const sb=window.supabase.createClient(SB_URL,SB_KEY);
 
-/* ── JSONP Helper ── */
-function jsonp(action,params){
-  return new Promise((ok,no)=>{
-    const cn='cb_'+Date.now()+'_'+Math.floor(Math.random()*1e5);
-    const tmo=setTimeout(()=>{delete window[cn];s.remove();no(new Error('Waktu tunggu habis — server tidak merespons.'));},12000);
-    window[cn]=d=>{clearTimeout(tmo);ok(d);delete window[cn];s.remove();};
-    let u=GAS_URL+'?action='+encodeURIComponent(action)+'&callback='+cn;
-    for(const k in(params||{}))u+='&'+k+'='+encodeURIComponent(params[k]);
-    const s=document.createElement('script');s.src=u;
-    s.onerror=()=>{clearTimeout(tmo);no(new Error('Gagal memuat script — cek koneksi atau deployment GAS.'));};
-    document.body.appendChild(s);
-  });
+const MOOD_KEYS=['Happy','Bad Mood','Unfit'];
+function emptyMoodCount(){return{Happy:0,'Bad Mood':0,Unfit:0};}
+function todayStrLocal(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function nowJam(){const d=new Date();return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0');}
+function normNoreg(v){v=String(v||'').trim();return /^\d+$/.test(v)&&v.length<7?v.padStart(7,'0'):v;}
+
+/* ══════════════════════════════════════════
+   API LAYER — pengganti panggilan JSONP ke
+   Google Apps Script, sekarang langsung ke
+   Supabase (Postgres) lewat supabase-js.
+   Setiap fungsi mengembalikan bentuk data yang
+   SAMA PERSIS dengan backend Apps Script lama,
+   supaya kode render di bawah tidak perlu diubah.
+════════════════════════════════════════ */
+
+async function cariKaryawan(noregRaw){
+  const noreg=normNoreg(noregRaw);
+  try{
+    const{data,error}=await sb.from('karyawan').select('noreg,nama,line,jabatan').eq('noreg',noreg).maybeSingle();
+    if(error)throw error;
+    if(!data)return{ok:false,error:'NoReg tidak ditemukan'};
+    return{ok:true,noreg:data.noreg,nama:data.nama,line:data.line,jabatan:data.jabatan};
+  }catch(err){return{ok:false,error:err.message||'Koneksi ke Supabase gagal.'};}
+}
+
+async function cekSudahAbsen(noreg){
+  try{
+    const{count,error}=await sb.from('log_mood')
+      .select('id',{count:'exact',head:true})
+      .eq('noreg',noreg).eq('tanggal',todayStrLocal());
+    if(error)throw error;
+    return count>0;
+  }catch(err){return false;} /* gagal cek → biarkan lanjut, constraint unik di DB tetap jadi pengaman terakhir */
+}
+
+async function simpanMood({noreg,nama,line,mood}){
+  try{
+    const{error}=await sb.from('log_mood').insert({
+      tanggal:todayStrLocal(),jam:nowJam(),noreg:normNoreg(noreg),nama,line,mood
+    });
+    if(error){
+      if(error.code==='23505')return{ok:false,already:true,error:'NoReg ini sudah absen hari ini.'};
+      throw error;
+    }
+    return{ok:true};
+  }catch(err){return{ok:false,error:err.message||'Gagal menyimpan ke Supabase.'};}
+}
+
+async function getSemuaKaryawan(){
+  try{
+    const{data,error}=await sb.from('karyawan').select('noreg,nama,line,jabatan').order('nama',{ascending:true});
+    if(error)throw error;
+    return{ok:true,data:(data||[]).map(k=>({noreg:k.noreg,nama:k.nama,line:k.line,jabatan:k.jabatan}))};
+  }catch(err){return{ok:false,error:err.message||'Koneksi ke Supabase gagal.'};}
+}
+
+function addDaysStr(dateStr,delta){
+  const d=new Date(dateStr+'T00:00:00');d.setDate(d.getDate()+delta);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+async function getDashboardData(tanggal){
+  try{
+    const dariTgl=addDaysStr(tanggal,-6); /* tren 7 hari terakhir s/d tanggal terpilih */
+    const{data:rows,error}=await sb.from('log_mood')
+      .select('tanggal,jam,noreg,nama,line,mood')
+      .gte('tanggal',dariTgl).lte('tanggal',tanggal)
+      .order('jam',{ascending:true});
+    if(error)throw error;
+
+    const hariIni=(rows||[]).filter(r=>r.tanggal===tanggal);
+
+    /* moodHariIni & totalHariIni */
+    const moodHariIni=emptyMoodCount();
+    hariIni.forEach(r=>{if(moodHariIni[r.mood]!==undefined)moodHariIni[r.mood]++;});
+    const totalHariIni=hariIni.length;
+
+    /* perLine (untuk tanggal terpilih) */
+    const perLine={};
+    hariIni.forEach(r=>{
+      const ln=r.line||'-';
+      if(!perLine[ln])perLine[ln]={total:0,Happy:0,'Bad Mood':0,Unfit:0};
+      perLine[ln].total++;
+      if(perLine[ln][r.mood]!==undefined)perLine[ln][r.mood]++;
+    });
+
+    /* trend 7 hari */
+    const trendMap={};
+    for(let i=6;i>=0;i--){const t=addDaysStr(tanggal,-i);trendMap[t]={tanggal:t,...emptyMoodCount()};}
+    (rows||[]).forEach(r=>{if(trendMap[r.tanggal]&&trendMap[r.tanggal][r.mood]!==undefined)trendMap[r.tanggal][r.mood]++;});
+    const trend=Object.values(trendMap);
+
+    /* logDetail (tanggal terpilih), urut terbaru dulu */
+    const logDetail=hariIni.slice().reverse().map(r=>({jam:r.jam,noreg:r.noreg,nama:r.nama,line:r.line,mood:r.mood}));
+
+    return{ok:true,totalHariIni,moodHariIni,perLine,trend,logDetail};
+  }catch(err){return{ok:false,error:err.message||'Koneksi ke Supabase gagal.'};}
 }
 
 /* ── Toast ── */
@@ -647,59 +715,6 @@ function toast(msg,icon='fa-circle-info',color='var(--accent)'){
   c.appendChild(el);
   setTimeout(()=>{el.classList.add('out');el.addEventListener('animationend',()=>el.remove());},3200);
 }
-
-/* ══════════════════════════════════════════
-   PENGATURAN — Koneksi App Script
-════════════════════════════════════════ */
-const btnSettings=document.getElementById('btnSettings');
-const modalSettings=document.getElementById('modalSettings');
-const inputGasUrl=document.getElementById('inputGasUrl');
-const modalStatus=document.getElementById('modalStatus');
-
-function markSettingsState(){
-  const stored=localStorage.getItem(LS_KEY_GAS);
-  btnSettings.classList.toggle('unset',!stored);
-  btnSettings.title=stored?'Pengaturan koneksi App Script (tersimpan)':'Pengaturan koneksi App Script (belum diatur — memakai default)';
-}
-markSettingsState();
-
-function openSettings(){
-  inputGasUrl.value=GAS_URL;
-  modalStatus.textContent='';modalStatus.className='modal-status';
-  modalSettings.classList.add('on');
-  setTimeout(()=>inputGasUrl.focus(),50);
-}
-function closeSettings(){modalSettings.classList.remove('on');}
-
-btnSettings.addEventListener('click',openSettings);
-document.getElementById('btnModalCancel').addEventListener('click',closeSettings);
-modalSettings.addEventListener('click',e=>{if(e.target===modalSettings)closeSettings();});
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&modalSettings.classList.contains('on'))closeSettings();});
-
-document.getElementById('btnModalSave').addEventListener('click',async()=>{
-  const url=inputGasUrl.value.trim();
-  if(!url){modalStatus.className='modal-status err';modalStatus.textContent='URL tidak boleh kosong.';return;}
-  if(!/^https:\/\/script\.google\.com\/macros\/s\/.+\/exec$/.test(url)){
-    modalStatus.className='modal-status err';
-    modalStatus.textContent='Format URL tidak sesuai (harus URL deployment Web App Apps Script yang diakhiri /exec).';
-    return;
-  }
-  modalStatus.className='modal-status';modalStatus.textContent='Menguji koneksi...';
-  const prevUrl=GAS_URL;
-  GAS_URL=url;
-  try{
-    await jsonp('cariKaryawan',{noreg:'__ping__'});
-    modalStatus.className='modal-status ok';modalStatus.textContent='Tersambung ke server.';
-  }catch(err){
-    modalStatus.className='modal-status ok';
-    modalStatus.textContent='URL tersimpan (server tidak dapat diverifikasi otomatis, pastikan URL sudah benar).';
-  }
-  localStorage.setItem(LS_KEY_GAS,url);
-  markSettingsState();
-  dashLoaded=false;bcLoaded=false;
-  toast('Koneksi App Script diperbarui.','fa-plug-circle-check','var(--accent)');
-  setTimeout(closeSettings,700);
-});
 
 /* ── Tab Switching ── */
 let dashLoaded=false,bcLoaded=false;
@@ -730,26 +745,7 @@ let curK=null;
 const inpNoreg=document.getElementById('inputNoreg');
 const msgScan=document.getElementById('msgScan');
 
-/* ── Cegah double input per hari (per perangkat) ── */
-const LS_KEY_ABSEN='dashboard_absen_log';
-function bacaLogAbsen(){
-  try{
-    const raw=JSON.parse(localStorage.getItem(LS_KEY_ABSEN)||'{}');
-    if(raw.tanggal!==todayStr())return{tanggal:todayStr(),noreg:[]};
-    return raw;
-  }catch(e){return{tanggal:todayStr(),noreg:[]};}
-}
-function sudahAbsenHariIni(noreg){
-  const log=bacaLogAbsen();
-  return log.noreg.includes(String(noreg));
-}
-function tandaiSudahAbsen(noreg){
-  const log=bacaLogAbsen();
-  if(!log.noreg.includes(String(noreg)))log.noreg.push(String(noreg));
-  localStorage.setItem(LS_KEY_ABSEN,JSON.stringify(log));
-}
-
-inpNoreg.addEventListener('keydown',e=>{if(e.key==='Enter'){const v=inpNoreg.value.trim();if(v)cariKaryawan(v);}});
+inpNoreg.addEventListener('keydown',e=>{if(e.key==='Enter'){const v=inpNoreg.value.trim();if(v)cariScan(v);}});
 
 /* Auto-focus klik di mana saja di halaman scan */
 document.addEventListener('click',e=>{
@@ -758,13 +754,14 @@ document.addEventListener('click',e=>{
   if(document.getElementById('stScan').classList.contains('on'))inpNoreg.focus();
 });
 
-async function cariKaryawan(noreg){
+async function cariScan(noreg){
   msgScan.className='status-msg info';msgScan.textContent='Mencari data...';
   try{
-    const r=await jsonp('cariKaryawan',{noreg});
+    const r=await cariKaryawan(noreg);
     if(r.ok){
       curK=r;
-      if(sudahAbsenHariIni(r.noreg)){
+      const already=await cekSudahAbsen(r.noreg);
+      if(already){
         document.getElementById('alreadyDetail').textContent=r.nama+' (No. Reg '+r.noreg+') sudah tercatat absen hari ini.';
         showStage('stAlready');msgScan.textContent='';
         inpNoreg.value='';
@@ -794,9 +791,17 @@ document.querySelectorAll('.mood-btn').forEach(btn=>{
 async function pilihMood(mood){
   if(!curK)return;
   try{
-    const r=await jsonp('simpanMood',{noreg:curK.noreg,nama:curK.nama,line:curK.line,mood});
-    if(!r||!r.ok){msgScan.className='status-msg err';msgScan.textContent=(r&&r.error)||'Gagal menyimpan.';document.querySelectorAll('.mood-btn').forEach(b=>b.classList.remove('selected','locked'));showStage('stScan');return;}
-    tandaiSudahAbsen(curK.noreg);
+    const r=await simpanMood({noreg:curK.noreg,nama:curK.nama,line:curK.line,mood});
+    if(!r||!r.ok){
+      document.querySelectorAll('.mood-btn').forEach(b=>b.classList.remove('selected','locked'));
+      if(r&&r.already){
+        document.getElementById('alreadyDetail').textContent=curK.nama+' (No. Reg '+curK.noreg+') sudah tercatat absen hari ini.';
+        showStage('stAlready');msgScan.textContent='';
+        setTimeout(resetKiosk,2600);
+        return;
+      }
+      msgScan.className='status-msg err';msgScan.textContent=(r&&r.error)||'Gagal menyimpan.';showStage('stScan');return;
+    }
     document.getElementById('okDetail').textContent=curK.nama+' — '+mood;
     showStage('stOk');
     /* Ripple */
@@ -857,7 +862,7 @@ async function loadDashboard(silent){
     document.getElementById('tbLog').innerHTML='<div class="loading"><i class="fas fa-circle-notch"></i>Memuat...</div>';
   }
   try{
-    const r=await jsonp('getDashboardData',{tanggal:tgl});
+    const r=await getDashboardData(tgl);
     if(!r.ok){if(!silent)showDashErr(r.error);return;}
     renderKPI(r);renderTrend(r.trend);renderPie(r.moodHariIni);renderPerLine(r.perLine);renderLog(r.logDetail);
     stampLastUpdate();
@@ -1012,7 +1017,7 @@ let allKry=[];
 async function loadKaryawan(){
   const st=document.getElementById('stBC');st.textContent='Memuat data karyawan...';
   try{
-    const r=await jsonp('getSemuaKaryawan',{});
+    const r=await getSemuaKaryawan();
     if(!r.ok){st.textContent='Gagal: '+r.error;return;}
     allKry=r.data;st.textContent=allKry.length+' karyawan ditemukan.';
     renderCards(allKry);
