@@ -637,6 +637,7 @@ tbody tr:hover{background:rgba(255,255,255,0.02);}
       <div class="admin-form">
         <div><label>Tanggal</label><input type="date" id="bulkTanggal"></div>
         <div><label>Total Data</label><input type="number" id="bulkTotal" min="1" max="1000" value="100"></div>
+        <div class="wide"><label>Shift dan Range Jam Acak</label><select id="bulkShift"><option value="pagi">Shift Pagi — 05:30 sampai 07:15</option><option value="malam">Shift Malam — 19:00 sampai 21:00</option></select></div>
         <div class="wide"><label>Filter Line (opsional)</label><input id="bulkLine" value="" placeholder="Kosongkan untuk mengambil semua line"></div>
         <div><label>Happy (%)</label><input type="number" id="pctHappy" min="0" max="100" value="80"></div>
         <div><label>Bad Mood (%)</label><input type="number" id="pctBad" min="0" max="100" value="15"></div>
@@ -813,7 +814,15 @@ async function getAdminLogs(tanggal){
 }
 async function insertAdminRows(rows){for(let i=0;i<rows.length;i+=250){const{error}=await sb.from('log_mood').insert(rows.slice(i,i+250));if(error)throw error;}}
 async function updateAdminIds(ids,changes){for(let i=0;i<ids.length;i+=100){const{error}=await sb.from('log_mood').update(changes).in('id',ids.slice(i,i+100));if(error)throw error;}}
-async function deleteAdminIds(ids){for(let i=0;i<ids.length;i+=100){const{error}=await sb.from('log_mood').delete().in('id',ids.slice(i,i+100));if(error)throw error;}}
+async function deleteAdminIds(ids){
+  let terhapus=0;
+  for(let i=0;i<ids.length;i+=100){
+    const bagian=ids.slice(i,i+100),{data,error}=await sb.from('log_mood').delete().in('id',bagian).select('id');
+    if(error)throw error;terhapus+=(data||[]).length;
+  }
+  if(terhapus!==ids.length)throw new Error(`Hanya ${terhapus} dari ${ids.length} data yang terhapus. Periksa policy DELETE pada tabel log_mood di Supabase.`);
+  return terhapus;
+}
 function esc(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
 
 /* ── Toast ── */
@@ -836,7 +845,7 @@ document.querySelectorAll('.tab').forEach(btn=>{
     btn.classList.add('on');
     if(id==='pgScan'){resetKiosk();stopDashAutoRefresh();}
     if(id==='pgDashboard'){
-      if(!dashLoaded){loadDashboard();dashLoaded=true;}
+      loadDashboard(false);dashLoaded=true;
       startDashAutoRefresh();
     }else{stopDashAutoRefresh();}
     if(id==='pgAdmin')loadAdminLogs();
@@ -876,13 +885,19 @@ function calcMoodCounts(){
   const raw=p.map(x=>total*x/100),counts=raw.map(Math.floor),rank=raw.map((x,i)=>({i,r:x-counts[i]})).sort((a,b)=>b.r-a.r);let left=total-counts.reduce((a,b)=>a+b,0);
   rank.slice(0,left).forEach(x=>counts[x.i]++);return{total,counts};
 }
-function updateBulkPreview(){try{const{total,counts}=calcMoodCounts();document.getElementById('bulkPreview').textContent=`Happy ${counts[0]}, Bad Mood ${counts[1]}, Unfit ${counts[2]} dari total ${total} karyawan asli yang dipilih secara acak.`;}catch(e){document.getElementById('bulkPreview').textContent=e.message;}}
-['bulkTotal','pctHappy','pctBad','pctUnfit'].forEach(id=>document.getElementById(id).addEventListener('input',updateBulkPreview));updateBulkPreview();
+function randomJamShift(shift){
+  const range=shift==='malam'?[[19,0,0],[21,0,0]]:[[5,30,0],[7,15,0]];
+  const awal=range[0][0]*3600+range[0][1]*60+range[0][2],akhir=range[1][0]*3600+range[1][1]*60+range[1][2];
+  const sec=awal+Math.floor(Math.random()*(akhir-awal+1));
+  return String(Math.floor(sec/3600)).padStart(2,'0')+':'+String(Math.floor(sec%3600/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0');
+}
+function updateBulkPreview(){try{const{total,counts}=calcMoodCounts(),pagi=document.getElementById('bulkShift').value==='pagi',range=pagi?'05:30–07:15':'19:00–21:00';document.getElementById('bulkPreview').textContent=`Happy ${counts[0]}, Bad Mood ${counts[1]}, Unfit ${counts[2]} dari total ${total} karyawan asli. Jam diacak dalam range ${range}.`;}catch(e){document.getElementById('bulkPreview').textContent=e.message;}}
+['bulkTotal','pctHappy','pctBad','pctUnfit'].forEach(id=>document.getElementById(id).addEventListener('input',updateBulkPreview));document.getElementById('bulkShift').addEventListener('change',updateBulkPreview);updateBulkPreview();
 
 document.getElementById('btnGenerate').addEventListener('click',async()=>{
   const btn=document.getElementById('btnGenerate');
   try{
-    const{total,counts}=calcMoodCounts(),tanggal=document.getElementById('bulkTanggal').value,lineFilter=document.getElementById('bulkLine').value.trim().toLowerCase();if(!tanggal)throw new Error('Tanggal wajib dipilih.');
+    const{total,counts}=calcMoodCounts(),tanggal=document.getElementById('bulkTanggal').value,shift=document.getElementById('bulkShift').value,lineFilter=document.getElementById('bulkLine').value.trim().toLowerCase();if(!tanggal)throw new Error('Tanggal wajib dipilih.');
     const kryRes=await getSemuaKaryawan();if(!kryRes.ok)throw new Error(kryRes.error);
     const existing=await getAdminLogs(tanggal),sudah=new Set(existing.map(r=>normNoreg(r.noreg)));
     let kandidat=kryRes.data.filter(k=>!sudah.has(normNoreg(k.noreg))&&(!lineFilter||String(k.line||'').toLowerCase()===lineFilter));
@@ -891,7 +906,7 @@ document.getElementById('btnGenerate').addEventListener('click',async()=>{
     kandidat=kandidat.slice(0,total);
     const moods=[];[['Happy',counts[0]],['Bad Mood',counts[1]],['Unfit',counts[2]]].forEach(([m,n])=>{for(let i=0;i<n;i++)moods.push(m);});
     for(let i=moods.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[moods[i],moods[j]]=[moods[j],moods[i]];}
-    const rows=moods.map((m,i)=>{const sec=Math.floor(Math.random()*86400),k=kandidat[i];return{tanggal,jam:String(Math.floor(sec/3600)).padStart(2,'0')+':'+String(Math.floor(sec%3600/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0'),noreg:normNoreg(k.noreg),nama:k.nama,line:k.line||'-',mood:m};});
+    const rows=moods.map((m,i)=>{const k=kandidat[i];return{tanggal,jam:randomJamShift(shift),noreg:normNoreg(k.noreg),nama:k.nama,line:k.line||'-',mood:m};});
     btn.disabled=true;btn.innerHTML='<i class="fas fa-circle-notch fa-spin"></i> Menyimpan...';await insertAdminRows(rows);toast(`${total} data massal berhasil disimpan`,'fa-circle-check');dashLoaded=false;document.getElementById('adminTanggal').value=tanggal;await loadAdminLogs();
   }catch(e){toast(e.message||'Gagal membuat data','fa-triangle-exclamation','var(--unfit)');}
   finally{btn.disabled=false;btn.innerHTML='<i class="fas fa-bolt"></i> Buat & Simpan Data Massal';}
@@ -913,7 +928,7 @@ async function loadAdminLogs(){
 }
 function selectedAdminIds(){return[...document.querySelectorAll('#adminTable .row-check:checked')].map(x=>x.value);}
 document.getElementById('btnBulkMood').addEventListener('click',async()=>{const ids=selectedAdminIds(),mood=document.getElementById('bulkMoodEdit').value;if(!ids.length||!mood){toast('Pilih data dan mood terlebih dahulu','fa-circle-info','var(--bad)');return;}try{await updateAdminIds(ids,{mood});toast(`${ids.length} data berhasil diubah`,'fa-circle-check');dashLoaded=false;await loadAdminLogs();}catch(e){toast(e.message,'fa-triangle-exclamation','var(--unfit)');}});
-document.getElementById('btnBulkDelete').addEventListener('click',async()=>{const ids=selectedAdminIds();if(!ids.length){toast('Pilih data yang akan dihapus','fa-circle-info','var(--bad)');return;}if(!confirm(`Hapus ${ids.length} data terpilih?`))return;try{await deleteAdminIds(ids);toast(`${ids.length} data berhasil dihapus`,'fa-trash');dashLoaded=false;await loadAdminLogs();}catch(e){toast(e.message,'fa-triangle-exclamation','var(--unfit)');}});
+document.getElementById('btnBulkDelete').addEventListener('click',async()=>{const ids=selectedAdminIds();if(!ids.length){toast('Pilih data yang akan dihapus','fa-circle-info','var(--bad)');return;}if(!confirm(`Hapus ${ids.length} data terpilih?`))return;try{const terhapus=await deleteAdminIds(ids);dashLoaded=false;await loadAdminLogs();const tglAdmin=document.getElementById('adminTanggal').value;if(document.getElementById('fTgl').value===tglAdmin){await loadDashboard(true);dashLoaded=true;}toast(`${terhapus} data berhasil dihapus dan dashboard diperbarui`,'fa-trash');}catch(e){toast(e.message||'Data gagal dihapus','fa-triangle-exclamation','var(--unfit)');await loadAdminLogs();}});
 async function editOneLog(btn){const nama=prompt('Nama:',btn.dataset.nama);if(nama===null)return;const line=prompt('Line:',btn.dataset.line);if(line===null)return;const mood=prompt('Mood (Happy / Bad Mood / Unfit):',btn.dataset.mood);if(mood===null)return;if(!MOOD_KEYS.includes(mood)){toast('Mood tidak valid','fa-triangle-exclamation','var(--unfit)');return;}try{await updateAdminIds([btn.dataset.edit],{nama:nama.trim(),line:line.trim(),mood});toast('Data berhasil diedit','fa-circle-check');dashLoaded=false;await loadAdminLogs();}catch(e){toast(e.message,'fa-triangle-exclamation','var(--unfit)');}}
 
 /* ── Jam ── */
