@@ -142,6 +142,21 @@ h1,h2,h3,h4{font-family:'Space Grotesk',sans-serif;}
 .auto-refresh-chip:not(.on) i{opacity:.5;}
 @keyframes spinRefresh{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
 .last-update{font-size:11px;color:var(--dim);white-space:nowrap;}
+.admin-only{display:none!important;}
+body.admin-mode .admin-only{display:flex!important;}
+.admin-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin-bottom:22px;}
+.admin-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;}
+.admin-form .wide{grid-column:1/-1;}
+.admin-form label{display:block;font-size:11px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
+.admin-form input,.admin-form select{width:100%;padding:11px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(6,10,18,.7);color:var(--text);outline:none;}
+.admin-form input:focus,.admin-form select:focus{border-color:var(--accent);}
+.admin-note{font-size:12px;color:var(--text2);line-height:1.55;margin-top:12px;}
+.admin-actions{display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-bottom:14px;}
+.admin-actions button{padding:10px 14px;border-radius:9px;border:1px solid var(--border);background:rgba(255,255,255,.03);color:var(--text);font-weight:700;cursor:pointer;}
+.admin-actions .danger{color:#fecaca;border-color:rgba(239,68,68,.3);background:var(--unfit-s);}
+.admin-check{width:16px;height:16px;accent-color:var(--accent);}
+.admin-edit{padding:6px 9px;border-radius:7px;border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--text);cursor:pointer;}
+@media(max-width:720px){.admin-grid,.admin-form{grid-template-columns:1fr}.admin-form .wide{grid-column:auto;}}
 
 /* ── Pages ── */
 .pg{display:none;padding:24px 20px 48px;max-width:1160px;margin:0 auto;position:relative;z-index:1;}
@@ -371,6 +386,7 @@ h1,h2,h3,h4{font-family:'Space Grotesk',sans-serif;}
 .kpi.bad .kpi-icon{background:var(--bad-s);color:var(--bad);}
 .kpi.unfit .kpi-icon{background:var(--unfit-s);color:var(--unfit);}
 .kpi-val{font-family:'Space Grotesk',sans-serif;font-size:32px;font-weight:700;letter-spacing:-1px;}
+.kpi-sub{font-size:11px;color:var(--text2);margin-top:3px;font-weight:600;}
 .kpi.total .kpi-val{color:var(--accent);}
 .kpi.happy .kpi-val{color:var(--happy);}
 .kpi.bad .kpi-val{color:var(--bad);}
@@ -390,6 +406,31 @@ th{color:var(--dim);font-weight:700;font-size:11px;text-transform:uppercase;lett
 tbody tr{transition:background .15s;}
 tbody tr:hover{background:rgba(255,255,255,0.02);}
 .tbl-scroll{max-height:360px;overflow-y:auto;}
+
+/* Dashboard desktop dibuat muat dalam satu layar */
+@media(min-width:901px){
+  #pgDashboard{max-width:none;height:calc(100vh - 61px);padding:14px 18px 16px;overflow:hidden;}
+  #pgDashboard .dash-head{margin-bottom:10px;align-items:center;}
+  #pgDashboard .dash-head h1{font-size:21px;}
+  #pgDashboard .kpi-row{gap:10px;margin-bottom:10px;}
+  #pgDashboard .kpi{padding:11px 15px;border-radius:13px;}
+  #pgDashboard .kpi-top{margin-bottom:4px;}
+  #pgDashboard .kpi-icon{width:29px;height:29px;font-size:13px;}
+  #pgDashboard .kpi-val{font-size:25px;}
+  .dash-workspace{display:grid;grid-template-columns:minmax(0,42%) minmax(0,58%);gap:12px;height:calc(100vh - 232px);min-height:390px;}
+  .dash-left{display:grid;grid-template-rows:minmax(210px,1.25fr) minmax(155px,.85fr);gap:12px;min-height:0;}
+  .dash-lower{display:grid;grid-template-columns:minmax(180px,.75fr) minmax(250px,1.25fr);gap:12px;min-height:0;}
+  .dash-workspace .pnl{padding:14px;min-height:0;overflow:hidden;}
+  .dash-workspace .pnl h3{margin-bottom:8px;font-size:11px;}
+  .trend-box{height:calc(100% - 48px);min-height:145px;}
+  .pie-box{height:calc(100% - 48px);min-height:105px;}
+  .dash-workspace .legend{margin-top:5px;font-size:10px;gap:8px;}
+  .line-scroll,.log-full{height:calc(100% - 25px);max-height:none;overflow:auto;}
+  .log-panel{height:100%;}
+  .dash-workspace table{font-size:11.5px;}
+  .dash-workspace th,.dash-workspace td{padding:7px 8px;}
+}
+@media(max-width:900px){.dash-workspace,.dash-left,.dash-lower{display:block}.dash-workspace>.dash-left>*,.dash-lower>*,.log-panel{margin-bottom:16px}}
 
 /* ==================== BARCODE ==================== */
 .bc-head{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;justify-content:space-between;margin-bottom:20px;}
@@ -450,9 +491,21 @@ tbody tr:hover{background:rgba(255,255,255,0.02);}
     <span class="nav-div"></span>
     <button class="tab on" data-pg="pgScan" aria-label="Halaman Absen"><i class="fas fa-fingerprint"></i><span>Absen</span></button>
     <button class="tab" data-pg="pgDashboard" aria-label="Halaman Dashboard"><i class="fas fa-chart-line"></i><span>Dashboard</span></button>
-    <button class="tab" data-pg="pgBarcode" aria-label="Halaman Cetak Barcode"><i class="fas fa-id-card"></i><span>Cetak Barcode</span></button>
+    <button class="tab admin-only" data-pg="pgAdmin" aria-label="Kelola Absensi"><i class="fas fa-user-shield"></i><span>Kelola Absensi</span></button>
+    <button class="tab admin-only" data-pg="pgBarcode" aria-label="Halaman Cetak Barcode"><i class="fas fa-id-card"></i><span>Cetak Barcode</span></button>
   </div>
+  <button class="btn-settings" id="btnAdmin" title="Masuk mode admin"><i class="fas fa-lock"></i></button>
 </nav>
+
+<div class="modal-veil" id="adminModal">
+  <div class="modal-box">
+    <h3><i class="fas fa-user-shield"></i> Mode Admin</h3>
+    <p class="modal-sub">Masukkan PIN untuk membuka pengelolaan absensi dan pencetakan barcode.</p>
+    <div class="modal-field"><label>PIN Admin</label><input id="adminPin" type="password" inputmode="numeric" maxlength="12" placeholder="Masukkan PIN"></div>
+    <div class="modal-status" id="adminStatus"></div>
+    <div class="modal-actions"><button class="modal-btn-cancel" id="adminCancel">Batal</button><button class="modal-btn-save" id="adminLogin">Masuk</button></div>
+  </div>
+</div>
 
 <!-- ════════ SCAN ════════ -->
 <section id="pgScan" class="pg on">
@@ -534,6 +587,7 @@ tbody tr:hover{background:rgba(255,255,255,0.02);}
     <div class="kpi total">
       <div class="kpi-top"><span class="kpi-label">Total Absen</span><div class="kpi-icon"><i class="fas fa-users"></i></div></div>
       <div class="kpi-val" id="vTotal">-</div>
+      <div class="kpi-sub" id="vTotalPct">- dari total karyawan</div>
     </div>
     <div class="kpi happy">
       <div class="kpi-top"><span class="kpi-label">Happy</span><div class="kpi-icon"><i class="fas fa-face-smile-beam"></i></div></div>
@@ -549,34 +603,66 @@ tbody tr:hover{background:rgba(255,255,255,0.02);}
     </div>
   </div>
 
-  <div class="charts-row">
-    <div class="pnl">
-      <h3><i class="fas fa-chart-line"></i> Tren 7 Hari Terakhir</h3>
-      <div class="chart-box"><canvas id="cTrend"></canvas></div>
-      <div class="legend">
-        <span><i class="dot" style="background:var(--happy)"></i>Happy</span>
-        <span><i class="dot" style="background:var(--bad)"></i>Bad Mood</span>
-        <span><i class="dot" style="background:var(--unfit)"></i>Unfit</span>
+  <div class="dash-workspace">
+    <div class="dash-left">
+      <div class="pnl">
+        <h3><i class="fas fa-chart-line"></i> Tren 7 Hari Terakhir</h3>
+        <div class="chart-box trend-box"><canvas id="cTrend"></canvas></div>
+        <div class="legend"><span><i class="dot" style="background:var(--happy)"></i>Happy</span><span><i class="dot" style="background:var(--bad)"></i>Bad Mood</span><span><i class="dot" style="background:var(--unfit)"></i>Unfit</span></div>
+      </div>
+      <div class="dash-lower">
+        <div class="pnl">
+          <h3><i class="fas fa-chart-pie"></i> Komposisi</h3>
+          <div class="chart-box pie-box"><canvas id="cPie"></canvas></div>
+        </div>
+        <div class="pnl">
+          <h3><i class="fas fa-table-cells"></i> Ringkasan per Line</h3>
+          <div class="line-scroll" id="tbLine"><div class="loading"><i class="fas fa-circle-notch"></i>Memuat...</div></div>
+        </div>
       </div>
     </div>
-    <div class="pnl">
-      <h3><i class="fas fa-chart-pie"></i> Komposisi Hari Ini</h3>
-      <div class="chart-box"><canvas id="cPie"></canvas></div>
-      <div class="legend" style="justify-content:center;">
-        <span><i class="dot" style="background:var(--happy)"></i>Happy</span>
-        <span><i class="dot" style="background:var(--bad)"></i>Bad Mood</span>
-        <span><i class="dot" style="background:var(--unfit)"></i>Unfit</span>
-      </div>
+    <div class="pnl log-panel">
+      <h3><i class="fas fa-list-check"></i> Log Detail Karyawan</h3>
+      <div class="tbl-scroll log-full" id="tbLog"><div class="loading"><i class="fas fa-circle-notch"></i>Memuat...</div></div>
     </div>
   </div>
+</section>
 
-  <div class="pnl" style="margin-bottom:22px;">
-    <h3><i class="fas fa-table-cells"></i> Ringkasan per Line</h3>
-    <div id="tbLine"><div class="loading"><i class="fas fa-circle-notch"></i>Memuat...</div></div>
+<!-- ════════ ADMIN ════════ -->
+<section id="pgAdmin" class="pg">
+  <div class="bc-head"><div><div class="eyebrow">Mode Admin</div><h1 style="font-size:22px;font-weight:700;">Kelola Absensi</h1></div><button class="btn-ol" id="btnLogoutAdmin"><i class="fas fa-right-from-bracket"></i> Keluar Admin</button></div>
+  <div class="admin-grid">
+    <div class="pnl">
+      <h3><i class="fas fa-wand-magic-sparkles"></i> Input Massal Berdasarkan Persentase</h3>
+      <div class="admin-form">
+        <div><label>Tanggal</label><input type="date" id="bulkTanggal"></div>
+        <div><label>Total Data</label><input type="number" id="bulkTotal" min="1" max="1000" value="100"></div>
+        <div class="wide"><label>Filter Line (opsional)</label><input id="bulkLine" value="" placeholder="Kosongkan untuk mengambil semua line"></div>
+        <div><label>Happy (%)</label><input type="number" id="pctHappy" min="0" max="100" value="80"></div>
+        <div><label>Bad Mood (%)</label><input type="number" id="pctBad" min="0" max="100" value="15"></div>
+        <div><label>Unfit (%)</label><input type="number" id="pctUnfit" min="0" max="100" value="5"></div>
+        <div><label>Sumber Nama</label><input value="Data karyawan Supabase (acak)" disabled></div>
+        <button class="btn-pr wide" id="btnGenerate"><i class="fas fa-bolt"></i> Buat & Simpan Data Massal</button>
+      </div>
+      <div class="admin-note" id="bulkPreview">Happy 80, Bad Mood 15, Unfit 5 dari total 100 karyawan asli yang dipilih secara acak.</div>
+    </div>
+    <div class="pnl">
+      <h3><i class="fas fa-user-plus"></i> Tambah Satu Data Manual</h3>
+      <div class="admin-form">
+        <div><label>Tanggal</label><input type="date" id="manualTanggal"></div>
+        <div><label>Jam</label><input type="time" id="manualJam"></div>
+        <div><label>NoReg</label><input id="manualNoreg" placeholder="NoReg / ID bebas"></div>
+        <div><label>Nama</label><input id="manualNama" placeholder="Nama karyawan"></div>
+        <div><label>Line</label><input id="manualLine" placeholder="Nama line"></div>
+        <div><label>Mood</label><select id="manualMood"><option>Happy</option><option>Bad Mood</option><option>Unfit</option></select></div>
+        <button class="btn-pr wide" id="btnManualSave"><i class="fas fa-floppy-disk"></i> Simpan Data</button>
+      </div>
+    </div>
   </div>
   <div class="pnl">
-    <h3><i class="fas fa-list-check"></i> Log Detail Karyawan</h3>
-    <div class="tbl-scroll" id="tbLog"><div class="loading"><i class="fas fa-circle-notch"></i>Memuat...</div></div>
+    <h3><i class="fas fa-pen-to-square"></i> Edit Data Absensi</h3>
+    <div class="admin-actions"><input type="date" id="adminTanggal"><button id="btnLoadAdmin"><i class="fas fa-rotate"></i> Muat</button><select id="bulkMoodEdit" style="padding:10px;border-radius:9px;background:var(--card-solid);color:var(--text);border:1px solid var(--border)"><option value="">Ubah mood terpilih...</option><option>Happy</option><option>Bad Mood</option><option>Unfit</option></select><button id="btnBulkMood">Terapkan</button><button class="danger" id="btnBulkDelete"><i class="fas fa-trash"></i> Hapus Terpilih</button></div>
+    <div class="tbl-scroll" id="adminTable"><div class="empty">Pilih tanggal lalu klik Muat.</div></div>
   </div>
 </section>
 
@@ -607,6 +693,7 @@ tbody tr:hover{background:rgba(255,255,255,0.02);}
 const SB_URL='https://zvsgqmqyuxevvzyjadzv.supabase.co';
 const SB_KEY='sb_publishable_nFphtt4y1peWkqpqTn1Mcg_QWnM7RPf';
 const sb=window.supabase.createClient(SB_URL,SB_KEY);
+const ADMIN_PIN='1234'; // Ganti PIN awal ini sebelum aplikasi digunakan
 
 const MOOD_KEYS=['Happy','Bad Mood','Unfit'];
 function emptyMoodCount(){return{Happy:0,'Bad Mood':0,Unfit:0};}
@@ -658,9 +745,12 @@ async function simpanMood({noreg,nama,line,mood}){
 
 async function getSemuaKaryawan(){
   try{
-    const{data,error}=await sb.from('karyawan').select('noreg,nama,line,jabatan').order('nama',{ascending:true});
-    if(error)throw error;
-    return{ok:true,data:(data||[]).map(k=>({noreg:k.noreg,nama:k.nama,line:k.line,jabatan:k.jabatan}))};
+    const semua=[];let dari=0;
+    while(true){
+      const{data,error}=await sb.from('karyawan').select('noreg,nama,line,jabatan').order('nama',{ascending:true}).range(dari,dari+999);
+      if(error)throw error;semua.push(...(data||[]));if(!data||data.length<1000)break;dari+=1000;
+    }
+    return{ok:true,data:semua.map(k=>({noreg:k.noreg,nama:k.nama,line:k.line,jabatan:k.jabatan}))};
   }catch(err){return{ok:false,error:err.message||'Koneksi ke Supabase gagal.'};}
 }
 
@@ -668,15 +758,24 @@ function addDaysStr(dateStr,delta){
   const d=new Date(dateStr+'T00:00:00');d.setDate(d.getDate()+delta);
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 }
+async function getLogRangePaged(dariTgl,sampaiTgl){
+  const semua=[];let dari=0;
+  while(true){
+    const{data,error}=await sb.from('log_mood').select('tanggal,jam,noreg,nama,line,mood').gte('tanggal',dariTgl).lte('tanggal',sampaiTgl).order('tanggal',{ascending:true}).order('jam',{ascending:true}).range(dari,dari+999);
+    if(error)throw error;semua.push(...(data||[]));if(!data||data.length<1000)break;dari+=1000;
+  }
+  return semua;
+}
 
 async function getDashboardData(tanggal){
   try{
     const dariTgl=addDaysStr(tanggal,-6); /* tren 7 hari terakhir s/d tanggal terpilih */
-    const{data:rows,error}=await sb.from('log_mood')
-      .select('tanggal,jam,noreg,nama,line,mood')
-      .gte('tanggal',dariTgl).lte('tanggal',tanggal)
-      .order('jam',{ascending:true});
-    if(error)throw error;
+    const[rows,karyawanRes]=await Promise.all([
+      getLogRangePaged(dariTgl,tanggal),
+      sb.from('karyawan').select('noreg',{count:'exact',head:true})
+    ]);
+    if(karyawanRes.error)throw karyawanRes.error;
+    const totalKaryawan=karyawanRes.count||0;
 
     const hariIni=(rows||[]).filter(r=>r.tanggal===tanggal);
 
@@ -703,9 +802,19 @@ async function getDashboardData(tanggal){
     /* logDetail (tanggal terpilih), urut terbaru dulu */
     const logDetail=hariIni.slice().reverse().map(r=>({jam:r.jam,noreg:r.noreg,nama:r.nama,line:r.line,mood:r.mood}));
 
-    return{ok:true,totalHariIni,moodHariIni,perLine,trend,logDetail};
+    const persenAbsen=totalKaryawan?Math.min(100,totalHariIni/totalKaryawan*100):0;
+    return{ok:true,totalHariIni,totalKaryawan,persenAbsen,moodHariIni,perLine,trend,logDetail};
   }catch(err){return{ok:false,error:err.message||'Koneksi ke Supabase gagal.'};}
 }
+
+async function getAdminLogs(tanggal){
+  const{data,error}=await sb.from('log_mood').select('id,tanggal,jam,noreg,nama,line,mood').eq('tanggal',tanggal).order('jam',{ascending:false}).limit(2000);
+  if(error)throw error;return data||[];
+}
+async function insertAdminRows(rows){for(let i=0;i<rows.length;i+=250){const{error}=await sb.from('log_mood').insert(rows.slice(i,i+250));if(error)throw error;}}
+async function updateAdminIds(ids,changes){for(let i=0;i<ids.length;i+=100){const{error}=await sb.from('log_mood').update(changes).in('id',ids.slice(i,i+100));if(error)throw error;}}
+async function deleteAdminIds(ids){for(let i=0;i<ids.length;i+=100){const{error}=await sb.from('log_mood').delete().in('id',ids.slice(i,i+100));if(error)throw error;}}
+function esc(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
 
 /* ── Toast ── */
 function toast(msg,icon='fa-circle-info',color='var(--accent)'){
@@ -730,9 +839,82 @@ document.querySelectorAll('.tab').forEach(btn=>{
       if(!dashLoaded){loadDashboard();dashLoaded=true;}
       startDashAutoRefresh();
     }else{stopDashAutoRefresh();}
+    if(id==='pgAdmin')loadAdminLogs();
     if(id==='pgBarcode'&&!bcLoaded){loadKaryawan();bcLoaded=true;}
   });
 });
+
+/* ══════════════════════════════════════════ MODE ADMIN ══════════════════════════════════════════ */
+let adminOn=sessionStorage.getItem('happinessAdmin')==='1';
+const adminModal=document.getElementById('adminModal');
+function setAdminMode(on){
+  adminOn=on;document.body.classList.toggle('admin-mode',on);sessionStorage.setItem('happinessAdmin',on?'1':'0');
+  document.getElementById('btnAdmin').innerHTML=`<i class="fas fa-${on?'unlock':'lock'}"></i>`;
+  document.getElementById('btnAdmin').title=on?'Mode admin aktif':'Masuk mode admin';
+}
+setAdminMode(adminOn);
+document.getElementById('btnAdmin').addEventListener('click',()=>{
+  if(adminOn){document.querySelector('[data-pg="pgAdmin"]').click();return;}
+  document.getElementById('adminPin').value='';document.getElementById('adminStatus').textContent='';adminModal.classList.add('on');setTimeout(()=>document.getElementById('adminPin').focus(),50);
+});
+document.getElementById('adminCancel').addEventListener('click',()=>adminModal.classList.remove('on'));
+document.getElementById('adminLogin').addEventListener('click',loginAdmin);
+document.getElementById('adminPin').addEventListener('keydown',e=>{if(e.key==='Enter')loginAdmin();});
+function loginAdmin(){
+  const st=document.getElementById('adminStatus');
+  if(document.getElementById('adminPin').value!==ADMIN_PIN){st.className='modal-status err';st.textContent='PIN salah.';return;}
+  setAdminMode(true);adminModal.classList.remove('on');toast('Mode admin aktif','fa-user-shield');document.querySelector('[data-pg="pgAdmin"]').click();
+}
+document.getElementById('btnLogoutAdmin').addEventListener('click',()=>{setAdminMode(false);document.querySelector('[data-pg="pgScan"]').click();toast('Mode admin ditutup','fa-lock','var(--bad)');});
+
+['bulkTanggal','manualTanggal','adminTanggal'].forEach(id=>document.getElementById(id).value=todayStrLocal());
+document.getElementById('manualJam').value=nowJam().slice(0,5);
+function calcMoodCounts(){
+  const total=Number(document.getElementById('bulkTotal').value)||0,p=[Number(document.getElementById('pctHappy').value)||0,Number(document.getElementById('pctBad').value)||0,Number(document.getElementById('pctUnfit').value)||0];
+  if(total<1||total>1000)throw new Error('Total data harus 1 sampai 1000.');
+  if(p.some(x=>x<0||x>100)||Math.abs(p.reduce((a,b)=>a+b,0)-100)>.001)throw new Error('Total persentase harus tepat 100%.');
+  const raw=p.map(x=>total*x/100),counts=raw.map(Math.floor),rank=raw.map((x,i)=>({i,r:x-counts[i]})).sort((a,b)=>b.r-a.r);let left=total-counts.reduce((a,b)=>a+b,0);
+  rank.slice(0,left).forEach(x=>counts[x.i]++);return{total,counts};
+}
+function updateBulkPreview(){try{const{total,counts}=calcMoodCounts();document.getElementById('bulkPreview').textContent=`Happy ${counts[0]}, Bad Mood ${counts[1]}, Unfit ${counts[2]} dari total ${total} karyawan asli yang dipilih secara acak.`;}catch(e){document.getElementById('bulkPreview').textContent=e.message;}}
+['bulkTotal','pctHappy','pctBad','pctUnfit'].forEach(id=>document.getElementById(id).addEventListener('input',updateBulkPreview));updateBulkPreview();
+
+document.getElementById('btnGenerate').addEventListener('click',async()=>{
+  const btn=document.getElementById('btnGenerate');
+  try{
+    const{total,counts}=calcMoodCounts(),tanggal=document.getElementById('bulkTanggal').value,lineFilter=document.getElementById('bulkLine').value.trim().toLowerCase();if(!tanggal)throw new Error('Tanggal wajib dipilih.');
+    const kryRes=await getSemuaKaryawan();if(!kryRes.ok)throw new Error(kryRes.error);
+    const existing=await getAdminLogs(tanggal),sudah=new Set(existing.map(r=>normNoreg(r.noreg)));
+    let kandidat=kryRes.data.filter(k=>!sudah.has(normNoreg(k.noreg))&&(!lineFilter||String(k.line||'').toLowerCase()===lineFilter));
+    for(let i=kandidat.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[kandidat[i],kandidat[j]]=[kandidat[j],kandidat[i]];}
+    if(kandidat.length<total)throw new Error(`Karyawan tersedia hanya ${kandidat.length}. Kurangi total atau ubah filter line.`);
+    kandidat=kandidat.slice(0,total);
+    const moods=[];[['Happy',counts[0]],['Bad Mood',counts[1]],['Unfit',counts[2]]].forEach(([m,n])=>{for(let i=0;i<n;i++)moods.push(m);});
+    for(let i=moods.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[moods[i],moods[j]]=[moods[j],moods[i]];}
+    const rows=moods.map((m,i)=>{const sec=Math.floor(Math.random()*86400),k=kandidat[i];return{tanggal,jam:String(Math.floor(sec/3600)).padStart(2,'0')+':'+String(Math.floor(sec%3600/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0'),noreg:normNoreg(k.noreg),nama:k.nama,line:k.line||'-',mood:m};});
+    btn.disabled=true;btn.innerHTML='<i class="fas fa-circle-notch fa-spin"></i> Menyimpan...';await insertAdminRows(rows);toast(`${total} data massal berhasil disimpan`,'fa-circle-check');dashLoaded=false;document.getElementById('adminTanggal').value=tanggal;await loadAdminLogs();
+  }catch(e){toast(e.message||'Gagal membuat data','fa-triangle-exclamation','var(--unfit)');}
+  finally{btn.disabled=false;btn.innerHTML='<i class="fas fa-bolt"></i> Buat & Simpan Data Massal';}
+});
+
+document.getElementById('btnManualSave').addEventListener('click',async()=>{
+  try{const row={tanggal:document.getElementById('manualTanggal').value,jam:(document.getElementById('manualJam').value||'00:00')+':00',noreg:document.getElementById('manualNoreg').value.trim(),nama:document.getElementById('manualNama').value.trim(),line:document.getElementById('manualLine').value.trim(),mood:document.getElementById('manualMood').value};if(!row.tanggal||!row.noreg||!row.nama||!row.line)throw new Error('Tanggal, NoReg, nama, dan line wajib diisi.');await insertAdminRows([row]);toast('Data manual berhasil disimpan','fa-circle-check');dashLoaded=false;document.getElementById('adminTanggal').value=row.tanggal;await loadAdminLogs();}
+  catch(e){toast(e.message||'Gagal menyimpan','fa-triangle-exclamation','var(--unfit)');}
+});
+
+document.getElementById('btnLoadAdmin').addEventListener('click',loadAdminLogs);
+async function loadAdminLogs(){
+  if(!adminOn)return;const box=document.getElementById('adminTable'),tgl=document.getElementById('adminTanggal').value;box.innerHTML='<div class="loading"><i class="fas fa-circle-notch"></i>Memuat...</div>';
+  try{const rows=await getAdminLogs(tgl);if(!rows.length){box.innerHTML='<div class="empty">Belum ada data pada tanggal ini.</div>';return;}
+    let h='<table><thead><tr><th><input class="admin-check" id="checkAllAdmin" type="checkbox"></th><th>Jam</th><th>NoReg</th><th>Nama</th><th>Line</th><th>Mood</th><th>Aksi</th></tr></thead><tbody>';
+    rows.forEach(r=>h+=`<tr><td><input class="admin-check row-check" type="checkbox" value="${esc(r.id)}"></td><td>${esc(r.jam)}</td><td>${esc(r.noreg)}</td><td>${esc(r.nama)}</td><td>${esc(r.line)}</td><td><span class="badge" data-m="${esc(r.mood)}">${esc(r.mood)}</span></td><td><button class="admin-edit" data-edit="${esc(r.id)}" data-nama="${esc(r.nama)}" data-line="${esc(r.line)}" data-mood="${esc(r.mood)}"><i class="fas fa-pen"></i></button></td></tr>`);box.innerHTML=h+'</tbody></table>';
+    document.getElementById('checkAllAdmin').addEventListener('change',e=>box.querySelectorAll('.row-check').forEach(x=>x.checked=e.target.checked));box.querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click',()=>editOneLog(b)));
+  }catch(e){box.innerHTML=`<div class="err">${esc(e.message||'Gagal memuat data.')}</div>`;}
+}
+function selectedAdminIds(){return[...document.querySelectorAll('#adminTable .row-check:checked')].map(x=>x.value);}
+document.getElementById('btnBulkMood').addEventListener('click',async()=>{const ids=selectedAdminIds(),mood=document.getElementById('bulkMoodEdit').value;if(!ids.length||!mood){toast('Pilih data dan mood terlebih dahulu','fa-circle-info','var(--bad)');return;}try{await updateAdminIds(ids,{mood});toast(`${ids.length} data berhasil diubah`,'fa-circle-check');dashLoaded=false;await loadAdminLogs();}catch(e){toast(e.message,'fa-triangle-exclamation','var(--unfit)');}});
+document.getElementById('btnBulkDelete').addEventListener('click',async()=>{const ids=selectedAdminIds();if(!ids.length){toast('Pilih data yang akan dihapus','fa-circle-info','var(--bad)');return;}if(!confirm(`Hapus ${ids.length} data terpilih?`))return;try{await deleteAdminIds(ids);toast(`${ids.length} data berhasil dihapus`,'fa-trash');dashLoaded=false;await loadAdminLogs();}catch(e){toast(e.message,'fa-triangle-exclamation','var(--unfit)');}});
+async function editOneLog(btn){const nama=prompt('Nama:',btn.dataset.nama);if(nama===null)return;const line=prompt('Line:',btn.dataset.line);if(line===null)return;const mood=prompt('Mood (Happy / Bad Mood / Unfit):',btn.dataset.mood);if(mood===null)return;if(!MOOD_KEYS.includes(mood)){toast('Mood tidak valid','fa-triangle-exclamation','var(--unfit)');return;}try{await updateAdminIds([btn.dataset.edit],{nama:nama.trim(),line:line.trim(),mood});toast('Data berhasil diedit','fa-circle-check');dashLoaded=false;await loadAdminLogs();}catch(e){toast(e.message,'fa-triangle-exclamation','var(--unfit)');}}
 
 /* ── Jam ── */
 function tick(){document.getElementById('jam').textContent=new Date().toLocaleTimeString('id-ID');}
@@ -916,6 +1098,7 @@ function showDashErr(m){
 
 function renderKPI(r){
   animNum('vTotal',r.totalHariIni);
+  document.getElementById('vTotalPct').textContent=`${r.persenAbsen.toLocaleString('id-ID',{maximumFractionDigits:1})}% dari ${r.totalKaryawan.toLocaleString('id-ID')} karyawan`;
   animNum('vHappy',r.moodHariIni.Happy);
   animNum('vBad',r.moodHariIni['Bad Mood']);
   animNum('vUnfit',r.moodHariIni.Unfit);
