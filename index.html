@@ -391,6 +391,13 @@ body.admin-mode .admin-only{display:flex!important;}
 .kpi.happy .kpi-val{color:var(--happy);}
 .kpi.bad .kpi-val{color:var(--bad);}
 .kpi.unfit .kpi-val{color:var(--unfit);}
+.kpi[data-log-filter]{cursor:pointer;user-select:none;}
+.kpi[data-log-filter]:focus-visible{outline:2px solid var(--accent);outline-offset:3px;}
+.kpi[data-log-filter].active{transform:translateY(-2px);border-color:var(--border-hi);box-shadow:0 0 0 2px var(--accent-s),var(--shadow-md);}
+.kpi.happy[data-log-filter].active{box-shadow:0 0 0 2px var(--happy-s),var(--shadow-md);border-color:var(--happy);}
+.kpi.bad[data-log-filter].active{box-shadow:0 0 0 2px var(--bad-s),var(--shadow-md);border-color:var(--bad);}
+.kpi.unfit[data-log-filter].active{box-shadow:0 0 0 2px var(--unfit-s),var(--shadow-md);border-color:var(--unfit);}
+.log-filter-label{font-size:11px;color:var(--text2);font-weight:500;margin-left:auto;}
 
 .charts-row{display:grid;grid-template-columns:1.7fr 1fr;gap:16px;margin-bottom:22px;}
 @media(max-width:800px){.charts-row{grid-template-columns:1fr;}}
@@ -584,20 +591,20 @@ tbody tr:hover{background:rgba(255,255,255,0.02);}
   </div>
 
   <div class="kpi-row">
-    <div class="kpi total">
+    <div class="kpi total active" data-log-filter="" role="button" tabindex="0" aria-pressed="true" aria-label="Tampilkan semua log karyawan">
       <div class="kpi-top"><span class="kpi-label">Total Absen</span><div class="kpi-icon"><i class="fas fa-users"></i></div></div>
       <div class="kpi-val" id="vTotal">-</div>
       <div class="kpi-sub" id="vTotalPct">- dari total karyawan</div>
     </div>
-    <div class="kpi happy">
+    <div class="kpi happy" data-log-filter="Happy" role="button" tabindex="0" aria-pressed="false" aria-label="Tampilkan log karyawan Happy">
       <div class="kpi-top"><span class="kpi-label">Happy</span><div class="kpi-icon"><i class="fas fa-face-smile-beam"></i></div></div>
       <div class="kpi-val" id="vHappy">-</div>
     </div>
-    <div class="kpi bad">
+    <div class="kpi bad" data-log-filter="Bad Mood" role="button" tabindex="0" aria-pressed="false" aria-label="Tampilkan log karyawan Bad Mood">
       <div class="kpi-top"><span class="kpi-label">Bad Mood</span><div class="kpi-icon"><i class="fas fa-face-frown-open"></i></div></div>
       <div class="kpi-val" id="vBad">-</div>
     </div>
-    <div class="kpi unfit">
+    <div class="kpi unfit" data-log-filter="Unfit" role="button" tabindex="0" aria-pressed="false" aria-label="Tampilkan log karyawan Unfit">
       <div class="kpi-top"><span class="kpi-label">Unfit</span><div class="kpi-icon"><i class="fas fa-face-dizzy"></i></div></div>
       <div class="kpi-val" id="vUnfit">-</div>
     </div>
@@ -622,7 +629,7 @@ tbody tr:hover{background:rgba(255,255,255,0.02);}
       </div>
     </div>
     <div class="pnl log-panel">
-      <h3><i class="fas fa-list-check"></i> Log Detail Karyawan</h3>
+      <h3><i class="fas fa-list-check"></i> Log Detail Karyawan <span class="log-filter-label" id="logFilterLabel">Semua Mood</span></h3>
       <div class="tbl-scroll log-full" id="tbLog"><div class="loading"><i class="fas fa-circle-notch"></i>Memuat...</div></div>
     </div>
   </div>
@@ -1034,6 +1041,28 @@ document.getElementById('fTgl').value=todayStr();
 document.getElementById('btnTgl').addEventListener('click',()=>loadDashboard(false));
 
 let chTrend=null,chPie=null;
+let dashboardLogDetail=[];
+let activeLogMood='';
+
+function setLogMoodFilter(mood){
+  activeLogMood=mood||'';
+  document.querySelectorAll('.kpi[data-log-filter]').forEach(card=>{
+    const active=card.dataset.logFilter===activeLogMood;
+    card.classList.toggle('active',active);
+    card.setAttribute('aria-pressed',String(active));
+  });
+  const label=document.getElementById('logFilterLabel');
+  if(label)label.textContent=activeLogMood||'Semua Mood';
+  renderLog(dashboardLogDetail,activeLogMood);
+}
+
+document.querySelectorAll('.kpi[data-log-filter]').forEach(card=>{
+  const pilih=()=>setLogMoodFilter(card.dataset.logFilter);
+  card.addEventListener('click',pilih);
+  card.addEventListener('keydown',e=>{
+    if(e.key==='Enter'||e.key===' '){e.preventDefault();pilih();}
+  });
+});
 
 /* Plugin teks tengah untuk doughnut */
 const centerPlugin={
@@ -1061,7 +1090,8 @@ async function loadDashboard(silent){
   try{
     const r=await getDashboardData(tgl);
     if(!r.ok){if(!silent)showDashErr(r.error);return;}
-    renderKPI(r);renderTrend(r.trend);renderPie(r.moodHariIni);renderPerLine(r.perLine);renderLog(r.logDetail);
+    dashboardLogDetail=r.logDetail||[];
+    renderKPI(r);renderTrend(r.trend);renderPie(r.moodHariIni);renderPerLine(r.perLine);renderLog(dashboardLogDetail,activeLogMood);
     stampLastUpdate();
   }catch(err){if(!silent)showDashErr(err.message);}
 }
@@ -1199,11 +1229,12 @@ function renderPerLine(perLine){
   c.innerHTML=h+'</tbody></table>';
 }
 
-function renderLog(log){
+function renderLog(log,moodFilter=activeLogMood){
   const c=document.getElementById('tbLog');
-  if(!log||!log.length){c.innerHTML='<div class="empty">Belum ada log untuk tanggal ini.</div>';return;}
+  const filtered=moodFilter?(log||[]).filter(r=>r.mood===moodFilter):(log||[]);
+  if(!filtered.length){c.innerHTML=`<div class="empty">${moodFilter?'Tidak ada log '+moodFilter+' untuk tanggal ini.':'Belum ada log untuk tanggal ini.'}</div>`;return;}
   let h='<table><thead><tr><th>Jam</th><th>NoReg</th><th>Nama</th><th>Line</th><th>Mood</th></tr></thead><tbody>';
-  log.forEach(r=>{h+=`<tr><td style="font-family:'Space Grotesk';font-weight:500">${r.jam}</td><td>${r.noreg}</td><td style="font-weight:600">${r.nama}</td><td>${r.line}</td><td><span class="badge" data-m="${r.mood}">${r.mood}</span></td></tr>`;});
+  filtered.forEach(r=>{h+=`<tr><td style="font-family:'Space Grotesk';font-weight:500">${r.jam}</td><td>${r.noreg}</td><td style="font-weight:600">${r.nama}</td><td>${r.line}</td><td><span class="badge" data-m="${r.mood}">${r.mood}</span></td></tr>`;});
   c.innerHTML=h+'</tbody></table>';
 }
 
