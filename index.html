@@ -592,9 +592,9 @@ tbody tr:hover{background:rgba(255,255,255,0.02);}
 
   <div class="kpi-row">
     <div class="kpi total active" data-log-filter="" role="button" tabindex="0" aria-pressed="true" aria-label="Tampilkan semua log karyawan">
-      <div class="kpi-top"><span class="kpi-label">Total Absen</span><div class="kpi-icon"><i class="fas fa-users"></i></div></div>
+      <div class="kpi-top"><span class="kpi-label">Partisipasi Survey</span><div class="kpi-icon"><i class="fas fa-users"></i></div></div>
       <div class="kpi-val" id="vTotal">-</div>
-      <div class="kpi-sub" id="vTotalPct">- dari total karyawan</div>
+      <div class="kpi-sub" id="vTotalPct">Member yang sudah mengisi</div>
     </div>
     <div class="kpi happy" data-log-filter="Happy" role="button" tabindex="0" aria-pressed="false" aria-label="Tampilkan log karyawan Happy">
       <div class="kpi-top"><span class="kpi-label">Happy</span><div class="kpi-icon"><i class="fas fa-face-smile-beam"></i></div></div>
@@ -1142,8 +1142,8 @@ function showDashErr(m){
 }
 
 function renderKPI(r){
-  animNum('vTotal',r.totalHariIni);
-  document.getElementById('vTotalPct').textContent=`${r.persenAbsen.toLocaleString('id-ID',{maximumFractionDigits:1})}% dari ${r.totalKaryawan.toLocaleString('id-ID')} karyawan`;
+  document.getElementById('vTotal').textContent=`${r.persenAbsen.toLocaleString('id-ID',{maximumFractionDigits:1})}%`;
+  document.getElementById('vTotalPct').textContent='Member yang sudah mengisi';
   animNum('vHappy',r.moodHariIni.Happy);
   animNum('vBad',r.moodHariIni['Bad Mood']);
   animNum('vUnfit',r.moodHariIni.Unfit);
